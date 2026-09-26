@@ -59,6 +59,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Workspaces
     Route::get('/workspaces', [WorkspaceController::class, 'index']);
     Route::post('/workspaces', [WorkspaceController::class, 'store'])->middleware('verified');
+
+    Route::post('/invitations/{token}/join', [InvitationController::class, 'join'])->middleware('verified');
 });
 
 /*

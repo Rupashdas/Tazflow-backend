@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InvitationResource;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\WorkspaceSummaryResource;
 use App\Mail\InvitationMail;
 use App\Models\Invitation;
 use App\Models\User;
@@ -136,13 +137,7 @@ class InvitationController extends Controller {
             // address, which proves the address is theirs.
             $user->forceFill(['email_verified_at' => now()])->save();
 
-            WorkspaceMember::create([
-                'workspace_id' => $invitation->workspace_id,
-                'user_id'      => $user->id,
-                'role_id'      => $invitation->role_id,
-            ]);
-
-            $invitation->update(['accepted_at' => now()]);
+            $this->admit($invitation, $user);
 
             return $user;
         });
@@ -151,6 +146,26 @@ class InvitationController extends Controller {
         $request->session()->regenerate();
 
         return (new UserResource($user->load('preference')))->response()->setStatusCode(201);
+    }
+
+    /** For someone already signed in: the invitation must have been sent to their address. */
+    public function join(Request $request, string $token): WorkspaceSummaryResource {
+        $invitation = $this->pending($token);
+
+        abort_unless(
+            Str::lower($request->user()->email) === Str::lower($invitation->email),
+            403,
+            'This invitation was sent to a different email address.',
+        );
+
+        DB::transaction(fn() => $this->admit($invitation, $request->user()));
+
+        return new WorkspaceSummaryResource(
+            WorkspaceMember::where('workspace_id', $invitation->workspace_id)
+                ->where('user_id', $request->user()->id)
+                ->with(['workspace', 'role'])
+                ->sole()
+        );
     }
 
     /*---------------------------------------------------------------------------
@@ -164,6 +179,16 @@ class InvitationController extends Controller {
         abort_if($invitation->isExpired(), 410, 'This invitation has expired. Ask for a new one.');
 
         return $invitation;
+    }
+
+    /** An existing membership is left as it is. */
+    private function admit(Invitation $invitation, User $user): void {
+        WorkspaceMember::firstOrCreate(
+            ['workspace_id' => $invitation->workspace_id, 'user_id' => $user->id],
+            ['role_id' => $invitation->role_id],
+        );
+
+        $invitation->update(['accepted_at' => now()]);
     }
 
     private function send(Invitation $invitation): void {
