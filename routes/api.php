@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CapabilityController;
 use App\Http\Controllers\Api\EmailVerificationNotificationController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PreferenceController;
 use App\Http\Controllers\Api\ProfileController;
@@ -83,6 +84,8 @@ Route::middleware(['auth:sanctum', 'active', 'workspace'])->group(function () {
         Route::patch('/roles/{role}', [RoleController::class, 'update']);
         Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
     });
+
+    Route::get('/members', [MemberController::class, 'index'])->middleware('capability:members.view');
 
     Route::get('/invitations', [InvitationController::class, 'index'])->middleware('capability:members.view');
 
