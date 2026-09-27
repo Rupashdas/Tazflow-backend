@@ -9,6 +9,7 @@ use App\Models\WorkspaceMember;
 use App\Support\CurrentWorkspace;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
 
 /**
  * Admins manage memberships — role, access, removal — never the accounts
@@ -30,5 +31,21 @@ class MemberController extends Controller {
             ->paginate(min((int) $request->input('per_page', 50), 100));
 
         return MemberResource::collection($members);
+    }
+
+    public function updateRole(Request $request, User $user, CurrentWorkspace $current): MemberResource {
+        $membership = WorkspaceMember::where('workspace_id', $current->id())
+            ->where('user_id', $user->id)
+            ->firstOr(fn () => abort(404, 'That person is not a member of this workspace.'));
+
+        abort_if($current->get()->isOwnedBy($user), 422, 'The owner\'s role cannot be changed. Hand over ownership first.');
+
+        $validated = $request->validate([
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->where('workspace_id', $current->id())],
+        ]);
+
+        $membership->update(['role_id' => $validated['role_id']]);
+
+        return new MemberResource($membership->load(['user', 'role']));
     }
 }
