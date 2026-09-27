@@ -90,6 +90,7 @@ Route::middleware(['auth:sanctum', 'active', 'workspace'])->group(function () {
     Route::middleware('capability:members.manage')->group(function () {
         Route::patch('/members/{user}/role', [MemberController::class, 'updateRole']);
         Route::patch('/members/{user}/active', [MemberController::class, 'toggleActive']);
+        Route::delete('/members/{user}', [MemberController::class, 'destroy']);
     });
 
     Route::get('/invitations', [InvitationController::class, 'index'])->middleware('capability:members.view');

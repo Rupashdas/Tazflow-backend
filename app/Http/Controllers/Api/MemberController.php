@@ -7,6 +7,7 @@ use App\Http\Resources\MemberResource;
 use App\Models\User;
 use App\Models\WorkspaceMember;
 use App\Support\CurrentWorkspace;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
@@ -53,6 +54,18 @@ class MemberController extends Controller {
         $membership->update(['is_active' => ! $membership->is_active]);
 
         return new MemberResource($membership->load(['user', 'role']));
+    }
+
+    public function destroy(Request $request, User $user, CurrentWorkspace $current): JsonResponse {
+        $membership = $this->membershipOf($user);
+        $this->refuseForOwner($user, $current, 'The owner cannot be removed. Hand over ownership first.');
+        abort_if($user->is($request->user()), 422, 'You cannot remove yourself.');
+
+        // When projects arrive, this is where their memberships and task
+        // assignments in this workspace get cleaned up too.
+        $membership->delete();
+
+        return response()->json(['message' => 'Removed from the workspace.']);
     }
 
     // BelongsToWorkspace keeps this inside the current workspace.
