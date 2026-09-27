@@ -46,6 +46,73 @@ class PostmanSync extends Command {
         'EmailVerificationNotification@store' => 'Resend Verification Email',
     ];
 
+    /**
+     * Bodies for routes whose controller validates inline (no FormRequest
+     * for the generic rule-reading logic in body() to find). Values point
+     * at a collection variable wherever one matches, so a freshly synced
+     * request already works against the demo seeder.
+     */
+    private const BODIES = [
+        'PasswordReset@sendLink'      => ['email' => '{{email}}'],
+        'PasswordReset@reset'         => [
+            'token'                 => '{{reset_token}}',
+            'email'                 => '{{email}}',
+            'password'              => '{{new_password}}',
+            'password_confirmation' => '{{new_password}}',
+        ],
+        'Profile@updatePassword'      => [
+            'current_password'     => '{{password}}',
+            'password'              => '{{new_password}}',
+            'password_confirmation' => '{{new_password}}',
+        ],
+        'Preference@update'           => [
+            'appearance'  => 'dark',
+            'timezone'    => 'Asia/Dhaka',
+            'week_start'  => 'sunday',
+            'time_format' => '12',
+        ],
+        'Workspace@store'             => ['name' => 'New Workspace'],
+        'Workspace@update'            => ['name' => 'Tazko HQ'],
+        'Workspace@destroy'           => ['confirm' => '{{workspace_slug}}'],
+        'Workspace@transferOwnership' => ['user_id' => '{{member_user_id}}'],
+        'Role@store'                  => ['name' => 'reviewer', 'label' => 'Reviewer', 'capabilities' => ['members.view']],
+        'Role@update'                 => ['label' => 'Reviewer (renamed)'],
+        'Member@updateRole'           => ['role_id' => '{{role_id}}'],
+        'Invitation@store'            => ['name' => '{{invite_name}}', 'email' => '{{invite_email}}', 'role_id' => '{{role_id}}'],
+        'Invitation@accept'           => [
+            'name'                  => '{{invite_name}}',
+            'password'              => '{{password}}',
+            'password_confirmation' => '{{password}}',
+        ],
+    ];
+
+    // A route parameter's default value, so `{role}`, `{user}`… already
+    // point at something the demo seeder created instead of an empty string.
+    private const PATH_VARIABLES = [
+        'role'       => '{{role_id}}',
+        'user'       => '{{member_user_id}}',
+        'invitation' => '{{invitation_id}}',
+        'token'      => '{{invite_token}}',
+    ];
+
+    /**
+     * What DatabaseSeeder always produces after `migrate:fresh --seed`
+     * (autoincrement resets, so the ids are fixed): workspace 1 is "tazko",
+     * owned by admin@example.com — an owner passes every capability check,
+     * so logging in as them can exercise every request in the collection.
+     * Role 2 is tazko's "member" role, held by user 4 (Debos), who is not
+     * the owner — a valid target for transfer-ownership and member actions.
+     */
+    private const SEEDED_VARIABLES = [
+        'email'          => 'admin@example.com',
+        'password'       => 'Pass123#',
+        'workspace_slug' => 'tazko',
+        'role_id'        => '2',
+        'member_user_id' => '4',
+        'invite_name'    => 'New Hire',
+        'invite_email'   => 'new.hire@example.com',
+    ];
+
     public function handle(): int {
         $local = $this->option('file');
 
@@ -61,6 +128,8 @@ class PostmanSync extends Command {
 
         // Postman leaves `item` out entirely once every folder is deleted.
         $collection['item'] ??= [];
+
+        $this->syncVariables($collection);
 
         $known  = $this->knownRequests($collection['item']);
         $missing = $this->apiRoutes()->reject(fn (LaravelRoute $route) => isset($known[$this->shape($route->methods()[0], $route->uri())]));
@@ -86,6 +155,21 @@ class PostmanSync extends Command {
         $this->info("Pushed {$missing->count()} request(s) to Postman.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Keeps the handful of variables the demo seeder decides in sync with
+     * it. Any other variable (a token picked up at runtime, one a person
+     * added by hand) is left exactly as it is.
+     */
+    private function syncVariables(array &$collection): void {
+        $variables = collect($collection['variable'] ?? [])->keyBy('key');
+
+        foreach (self::SEEDED_VARIABLES as $key => $value) {
+            $variables[$key] = ['key' => $key, 'value' => $value];
+        }
+
+        $collection['variable'] = $variables->values()->all();
     }
 
     /**
@@ -193,7 +277,10 @@ class PostmanSync extends Command {
         ];
 
         if ($route->parameterNames()) {
-            $url['variable'] = array_map(fn (string $name) => ['key' => $name, 'value' => ''], $route->parameterNames());
+            $url['variable'] = array_map(
+                fn (string $name) => ['key' => $name, 'value' => self::PATH_VARIABLES[$name] ?? ''],
+                $route->parameterNames(),
+            );
         }
 
         $request = [
@@ -202,7 +289,12 @@ class PostmanSync extends Command {
             'url'    => $url,
         ];
 
-        if (in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
+        // DELETE normally carries no body, except a route like /workspace
+        // that asks for a typed confirmation — hence the BODIES check too.
+        $resource = $this->resource($route);
+        $hasOverride = $resource && isset(self::BODIES["{$resource}@{$route->getActionMethod()}"]);
+
+        if (in_array($method, ['POST', 'PUT', 'PATCH'], true) || ($method === 'DELETE' && $hasOverride)) {
             $request['body'] = ['mode' => 'raw', 'raw' => $this->body($route, $variables), 'options' => ['raw' => ['language' => 'json']]];
         }
 
@@ -214,6 +306,13 @@ class PostmanSync extends Command {
      * Routes that validate inline get an empty body.
      */
     private function body(LaravelRoute $route, array $variables): string {
+        $resource = $this->resource($route);
+        $override = $resource ? (self::BODIES["{$resource}@{$route->getActionMethod()}"] ?? null) : null;
+
+        if ($override !== null) {
+            return json_encode($override, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
+
         $form = $this->formRequest($route);
 
         if (! $form) {
