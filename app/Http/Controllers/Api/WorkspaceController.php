@@ -63,7 +63,7 @@ class WorkspaceController extends Controller {
         return new WorkspaceResource($workspace);
     }
 
-    /** POST /workspace/transfer-ownership — owner only; the old owner stays on as an Admin. */
+    /** POST /workspace/transfer-ownership — owner only; the new owner becomes an Admin, and the old owner stays on as one. */
     public function transferOwnership(Request $request, CurrentWorkspace $current): WorkspaceResource {
         abort_unless($current->isOwner(), 403, 'Only the owner can hand over the workspace.');
 
@@ -76,15 +76,19 @@ class WorkspaceController extends Controller {
 
         abort_if(! $next || $next->user_id === $request->user()->id, 422, 'Ownership can only go to another active member.');
 
-        DB::transaction(function () use ($workspace, $request, $next) {
+        DB::transaction(function () use ($workspace, $current, $next) {
             $workspace->update(['owner_id' => $next->user_id]);
 
-            // Without this, an outgoing owner who held a weak role would
-            // lock themselves out of the workspace they built.
+            // The owner always holds the Admin role. Without this the incoming
+            // owner would keep whatever they had — a Guest could end up owning
+            // the workspace — and an outgoing owner who held a weak role would
+            // lock themselves out of the workspace they built. The old owner is
+            // updated through the membership CurrentWorkspace holds, so the
+            // "me" in this response sees the new role too.
             $adminRoleId = Role::where('name', 'admin')->value('id');
             if ($adminRoleId) {
-                WorkspaceMember::where('user_id', $request->user()->id)
-                    ->update(['role_id' => $adminRoleId]);
+                $next->update(['role_id' => $adminRoleId]);
+                $current->membership()->update(['role_id' => $adminRoleId]);
             }
         });
 
