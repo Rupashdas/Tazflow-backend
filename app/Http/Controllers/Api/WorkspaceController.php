@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\CreateWorkspace;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\WorkspaceResource;
 use App\Http\Resources\WorkspaceSummaryResource;
@@ -10,7 +11,6 @@ use App\Models\Role;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use App\Support\CurrentWorkspace;
-use App\Support\DefaultRoles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -33,30 +33,13 @@ class WorkspaceController extends Controller {
     }
 
     /** POST /workspaces — the caller becomes its owner and first member. */
-    public function store(Request $request): JsonResponse {
+    public function store(Request $request, CreateWorkspace $create): JsonResponse {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'slug' => ['nullable', ...Workspace::slugRules()],
         ]);
 
-        // Both rows or neither: a workspace nobody belongs to could never be opened.
-        $workspace = DB::transaction(function () use ($request, $validated) {
-            $workspace = Workspace::create([
-                'name'     => $validated['name'],
-                'slug'     => $validated['slug'] ?? Workspace::uniqueSlugFrom($validated['name']),
-                'owner_id' => $request->user()->id,
-            ]);
-
-            $roles = DefaultRoles::createFor($workspace);
-
-            WorkspaceMember::create([
-                'workspace_id' => $workspace->id,
-                'user_id'      => $request->user()->id,
-                'role_id'      => $roles['admin']->id,
-            ]);
-
-            return $workspace;
-        });
+        $workspace = $create($request->user(), $validated['name'], $validated['slug'] ?? null);
 
         return (new WorkspaceResource($workspace))->response()->setStatusCode(201);
     }
