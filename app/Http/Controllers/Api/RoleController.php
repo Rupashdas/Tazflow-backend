@@ -43,6 +43,8 @@ class RoleController extends Controller {
 
 
     public function update(Request $request, Role $role, CurrentWorkspace $current): RoleResource {
+        abort_if($role->is_admin && $request->has('capabilities'), 422, 'The Admin role always has every capability.');
+
         $validated = $request->validate($this->capabilityRules() + [
             'name'  => ['sometimes', 'required', ...$this->nameRules($current, $role)],
             'label' => ['sometimes', 'required', 'string', 'max:100'],
@@ -63,6 +65,9 @@ class RoleController extends Controller {
 
 
     public function destroy(Role $role): Response|JsonResponse {
+        // Ownership transfer relies on this role always being there.
+        abort_if($role->is_admin, 422, 'The Admin role cannot be deleted.');
+
         $count = $role->members()->count();
 
         // Deleting it would quietly strip these people of every permission.

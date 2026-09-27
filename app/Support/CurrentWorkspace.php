@@ -47,17 +47,14 @@ final class CurrentWorkspace {
     }
 
     /**
-     * What the person making this request may do here. The owner may do
-     * everything, in their own workspace only; everyone else gets what their
-     * role here allows.
+     * What the person making this request may do here: whatever their role
+     * here allows. The owner is not a special case — the owner always holds
+     * the Admin role (CreateWorkspace, transferOwnership, and MemberController
+     * refuses to change it), and that role always holds every capability.
      *
      * @return list<string>
      */
     public function capabilities(): array {
-        if ($this->isOwner()) {
-            return CapabilityRegistry::names();
-        }
-
         return $this->membership?->role?->capabilityNames() ?? [];
     }
 

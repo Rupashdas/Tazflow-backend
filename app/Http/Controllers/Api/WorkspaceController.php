@@ -79,17 +79,14 @@ class WorkspaceController extends Controller {
         DB::transaction(function () use ($workspace, $current, $next) {
             $workspace->update(['owner_id' => $next->user_id]);
 
-            // The owner always holds the Admin role. Without this the incoming
-            // owner would keep whatever they had — a Guest could end up owning
-            // the workspace — and an outgoing owner who held a weak role would
-            // lock themselves out of the workspace they built. The old owner is
-            // updated through the membership CurrentWorkspace holds, so the
-            // "me" in this response sees the new role too.
-            $adminRoleId = Role::where('name', 'admin')->value('id');
-            if ($adminRoleId) {
-                $next->update(['role_id' => $adminRoleId]);
-                $current->membership()->update(['role_id' => $adminRoleId]);
-            }
+            // The owner always holds the Admin role. is_admin, not the name:
+            // the Admin role can be renamed but never deleted, so this always
+            // finds it. The old owner is updated through the membership
+            // CurrentWorkspace holds, so the "me" in this response sees the
+            // new role too.
+            $adminRoleId = Role::where('is_admin', true)->value('id');
+            $next->update(['role_id' => $adminRoleId]);
+            $current->membership()->update(['role_id' => $adminRoleId]);
         });
 
         return new WorkspaceResource($workspace->refresh());

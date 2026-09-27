@@ -12,9 +12,14 @@ use InvalidArgumentException;
 class Role extends Model {
     use BelongsToWorkspace;
 
-    // workspace_id is fillable so a brand-new workspace can be given its
-    // roles before anyone is inside it. Controllers only pass validated keys.
-    protected $fillable = ['workspace_id', 'name', 'label'];
+    // workspace_id and is_admin are fillable so a brand-new workspace can be
+    // given its roles before anyone is inside it. Controllers only pass
+    // validated keys, and never is_admin.
+    protected $fillable = ['workspace_id', 'name', 'label', 'is_admin'];
+
+    protected function casts(): array {
+        return ['is_admin' => 'boolean'];
+    }
 
     public function members(): HasMany {
         return $this->hasMany(WorkspaceMember::class);
@@ -22,6 +27,12 @@ class Role extends Model {
 
     /** @return list<string> */
     public function capabilityNames(): array {
+        // Read from the registry, not stored: a capability added later
+        // reaches every workspace's Admin without touching the data.
+        if ($this->is_admin) {
+            return CapabilityRegistry::names();
+        }
+
         return DB::table('role_capabilities')->where('role_id', $this->id)->orderBy('capability')->pluck('capability')->all();
     }
 

@@ -11,6 +11,7 @@ class RoleResource extends JsonResource {
             'id'           => $this->id,
             'name'         => $this->name,
             'label'        => $this->label,
+            'is_admin'     => $this->is_admin,
             'capabilities' => $this->capabilityNames(),
             'members_count' => $this->whenCounted('members'),
         ];
