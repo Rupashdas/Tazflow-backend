@@ -16,7 +16,8 @@ class MemberResource extends JsonResource {
             'avatar'    => $this->user->avatarUrl(),
             'title'     => $this->user->title,
             'role'      => $this->role ? ['id' => $this->role->id, 'name' => $this->role->name, 'label' => $this->role->label] : null,
-            'is_owner'  => app(CurrentWorkspace::class)->get()->isOwnedBy($this->user),
+            'is_active' => $this->is_active,
+            'is_owner'  =>app(CurrentWorkspace::class)->get()->isOwnedBy($this->user),
             'joined_at' => $this->created_at,
         ];
     }

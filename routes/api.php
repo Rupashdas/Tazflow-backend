@@ -86,7 +86,11 @@ Route::middleware(['auth:sanctum', 'active', 'workspace'])->group(function () {
     });
 
     Route::get('/members', [MemberController::class, 'index'])->middleware('capability:members.view');
-    Route::patch('/members/{user}/role', [MemberController::class, 'updateRole'])->middleware('capability:members.manage');
+
+    Route::middleware('capability:members.manage')->group(function () {
+        Route::patch('/members/{user}/role', [MemberController::class, 'updateRole']);
+        Route::patch('/members/{user}/active', [MemberController::class, 'toggleActive']);
+    });
 
     Route::get('/invitations', [InvitationController::class, 'index'])->middleware('capability:members.view');
 

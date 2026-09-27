@@ -17,11 +17,10 @@ use Illuminate\Validation\Rule;
  * email here would hand their other workspaces to this one's admin.
  */
 class MemberController extends Controller {
-    public function index(Request $request, CurrentWorkspace $current): AnonymousResourceCollection {
+    public function index(Request $request): AnonymousResourceCollection {
         $search = $request->string('search')->trim()->value();
 
         $members = WorkspaceMember::query()
-            ->where('workspace_id', $current->id())
             ->with(['user', 'role'])
             ->when($search !== '', fn ($query) => $query->whereHas('user', function ($user) use ($search) {
                 $like = '%' . addcslashes($search, '%_\\') . '%';
@@ -34,11 +33,8 @@ class MemberController extends Controller {
     }
 
     public function updateRole(Request $request, User $user, CurrentWorkspace $current): MemberResource {
-        $membership = WorkspaceMember::where('workspace_id', $current->id())
-            ->where('user_id', $user->id)
-            ->firstOr(fn () => abort(404, 'That person is not a member of this workspace.'));
-
-        abort_if($current->get()->isOwnedBy($user), 422, 'The owner\'s role cannot be changed. Hand over ownership first.');
+        $membership = $this->membershipOf($user);
+        $this->refuseForOwner($user, $current, 'The owner\'s role cannot be changed. Hand over ownership first.');
 
         $validated = $request->validate([
             'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->where('workspace_id', $current->id())],
@@ -47,5 +43,25 @@ class MemberController extends Controller {
         $membership->update(['role_id' => $validated['role_id']]);
 
         return new MemberResource($membership->load(['user', 'role']));
+    }
+
+    public function toggleActive(Request $request, User $user, CurrentWorkspace $current): MemberResource {
+        $membership = $this->membershipOf($user);
+        $this->refuseForOwner($user, $current, 'The owner cannot be deactivated.');
+        abort_if($user->is($request->user()), 422, 'You cannot deactivate yourself.');
+
+        $membership->update(['is_active' => ! $membership->is_active]);
+
+        return new MemberResource($membership->load(['user', 'role']));
+    }
+
+    // BelongsToWorkspace keeps this inside the current workspace.
+    private function membershipOf(User $user): WorkspaceMember {
+        return WorkspaceMember::where('user_id', $user->id)
+            ->firstOr(fn () => abort(404, 'That person is not a member of this workspace.'));
+    }
+
+    private function refuseForOwner(User $user, CurrentWorkspace $current, string $message): void {
+        abort_if($current->get()->isOwnedBy($user), 422, $message);
     }
 }

@@ -19,6 +19,7 @@ class WorkspaceController extends Controller {
     public function index(Request $request): AnonymousResourceCollection {
         $memberships = WorkspaceMember::query()
             ->where('user_id', $request->user()->id)
+            ->where('is_active', true)
             ->with(['workspace', 'role'])
             ->get()
             ->sortBy(fn(WorkspaceMember $m) => $m->workspace->name)

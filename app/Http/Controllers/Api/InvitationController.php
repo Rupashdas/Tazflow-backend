@@ -43,8 +43,7 @@ class InvitationController extends Controller {
 
         $email = Str::lower($validated['email']);
 
-        $alreadyMember = WorkspaceMember::where('workspace_id', $current->id())
-            ->whereHas('user', fn($user) => $user->where('email', $email))
+        $alreadyMember = WorkspaceMember::whereHas('user', fn($user) => $user->where('email', $email))
             ->exists();
 
         if ($alreadyMember) {

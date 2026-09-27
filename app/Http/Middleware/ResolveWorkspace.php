@@ -31,6 +31,13 @@ class ResolveWorkspace {
             return response()->json(['code' => 'workspace_not_found', 'message' => 'Workspace not found.'], 404);
         }
 
+        if (! $membership->is_active) {
+            return response()->json([
+                'code'    => 'workspace_access_disabled',
+                'message' => 'Your access to this workspace has been disabled.',
+            ], 403);
+        }
+
         app(CurrentWorkspace::class)->set($workspace, $membership);
 
         return $next($request);
