@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RoleResource;
+use App\Models\Invitation;
 use App\Models\Role;
 use App\Support\CapabilityRegistry;
 use App\Support\CurrentWorkspace;
@@ -68,6 +69,16 @@ class RoleController extends Controller {
         if ($count > 0) {
             return response()->json([
                 'message' => "This role is held by {$count} " . str('member')->plural($count) . '. Give them another role first.',
+            ], 422);
+        }
+
+        // Expired ones count too: a resend brings them back to life.
+        $pending = Invitation::where('role_id', $role->id)->whereNull('accepted_at')->count();
+
+        // Deleting it would let these people in with no role at all.
+        if ($pending > 0) {
+            return response()->json([
+                'message' => "This role is on {$pending} open " . str('invitation')->plural($pending) . '. Cancel those first.',
             ], 422);
         }
 
