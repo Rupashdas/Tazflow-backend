@@ -104,4 +104,15 @@ class WorkspaceController extends Controller {
 
         return new WorkspaceResource($workspace->refresh());
     }
+
+    /** POST /workspace/leave — any member may walk out; the owner hands over first. */
+    public function leave(Request $request, CurrentWorkspace $current): JsonResponse {
+        abort_if($current->isOwner(), 422, 'The owner cannot leave. Hand over ownership first.');
+
+        // When projects arrive, this is where their memberships and task
+        // assignments in this workspace get cleaned up too (same as MemberController@destroy).
+        WorkspaceMember::where('user_id', $request->user()->id)->delete();
+
+        return response()->json(['message' => 'You have left the workspace.']);
+    }
 }
