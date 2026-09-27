@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class Workspace extends Model {
+    use SoftDeletes;
+
     /** Paths the frontend or a future marketing site may need. */
     public const RESERVED_SLUGS = [
         'api', 'admin', 'app', 'login', 'logout', 'register', 'signup', 'settings',
@@ -44,7 +47,8 @@ class Workspace extends Model {
         $slug = $base;
         $n = 2;
 
-        while (in_array($slug, self::RESERVED_SLUGS, true) || static::where('slug', $slug)->exists()) {
+        // withTrashed: a deleted workspace keeps its slug, and the unique index still sees it.
+        while (in_array($slug, self::RESERVED_SLUGS, true) || static::withTrashed()->where('slug', $slug)->exists()) {
             $slug = "{$base}-{$n}";
             $n++;
         }

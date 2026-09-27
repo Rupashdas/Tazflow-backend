@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\WorkspaceResource;
 use App\Http\Resources\WorkspaceSummaryResource;
+use App\Models\Invitation;
 use App\Models\Role;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
@@ -14,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class WorkspaceController extends Controller {
     /** GET /workspaces — every workspace the caller belongs to, for the switcher. */
@@ -21,6 +23,7 @@ class WorkspaceController extends Controller {
         $memberships = WorkspaceMember::query()
             ->where('user_id', $request->user()->id)
             ->where('is_active', true)
+            ->whereHas('workspace')
             ->with(['workspace', 'role'])
             ->get()
             ->sortBy(fn(WorkspaceMember $m) => $m->workspace->name)
@@ -114,5 +117,26 @@ class WorkspaceController extends Controller {
         WorkspaceMember::where('user_id', $request->user()->id)->delete();
 
         return response()->json(['message' => 'You have left the workspace.']);
+    }
+
+    /** DELETE /workspace — owner only. A soft delete, so a mistake can still be undone by hand. */
+    public function destroy(Request $request, CurrentWorkspace $current): JsonResponse {
+        abort_unless($current->isOwner(), 403, 'Only the owner can delete the workspace.');
+
+        $workspace = $current->get();
+
+        // Typing the slug is the "are you sure": one stray click cannot wipe a team's work.
+        if ($request->input('confirm') !== $workspace->slug) {
+            throw ValidationException::withMessages(['confirm' => "Type {$workspace->slug} to confirm."]);
+        }
+
+        DB::transaction(function () use ($workspace) {
+            // An open invitation would lead to a workspace that is no longer there.
+            Invitation::whereNull('accepted_at')->delete();
+
+            $workspace->delete();
+        });
+
+        return response()->json(['message' => 'The workspace has been deleted.']);
     }
 }
