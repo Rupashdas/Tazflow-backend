@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\WorkspaceResource;
 use App\Http\Resources\WorkspaceSummaryResource;
+use App\Models\Role;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use App\Support\CurrentWorkspace;
@@ -74,5 +75,33 @@ class WorkspaceController extends Controller {
         $workspace->update($validated);
 
         return new WorkspaceResource($workspace);
+    }
+
+    /** POST /workspace/transfer-ownership — owner only; the old owner stays on as an Admin. */
+    public function transferOwnership(Request $request, CurrentWorkspace $current): WorkspaceResource {
+        abort_unless($current->isOwner(), 403, 'Only the owner can hand over the workspace.');
+
+        $workspace = $current->get();
+        $validated = $request->validate(['user_id' => ['required', 'integer']]);
+
+        $next = WorkspaceMember::where('user_id', $validated['user_id'])
+            ->where('is_active', true)
+            ->first();
+
+        abort_if(! $next || $next->user_id === $request->user()->id, 422, 'Ownership can only go to another active member.');
+
+        DB::transaction(function () use ($workspace, $request, $next) {
+            $workspace->update(['owner_id' => $next->user_id]);
+
+            // Without this, an outgoing owner who held a weak role would
+            // lock themselves out of the workspace they built.
+            $adminRoleId = Role::where('name', 'admin')->value('id');
+            if ($adminRoleId) {
+                WorkspaceMember::where('user_id', $request->user()->id)
+                    ->update(['role_id' => $adminRoleId]);
+            }
+        });
+
+        return new WorkspaceResource($workspace->refresh());
     }
 }

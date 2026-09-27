@@ -72,6 +72,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 Route::middleware(['auth:sanctum', 'active', 'workspace'])->group(function () {
     Route::get('/workspace', [WorkspaceController::class, 'show']);
     Route::patch('/workspace', [WorkspaceController::class, 'update'])->middleware('capability:workspace.settings.manage');
+    Route::post('/workspace/transfer-ownership', [WorkspaceController::class, 'transferOwnership']);
 
     Route::middleware('capability:roles.view')->group(function () {
         Route::get('/capabilities', [CapabilityController::class, 'index']);
