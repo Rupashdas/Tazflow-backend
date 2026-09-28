@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\QueuedResetPassword;
+use App\Notifications\QueuedVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,6 +48,11 @@ class User extends Authenticatable implements MustVerifyEmail {
 
     public function avatarUrl(): ?string {
         return $this->avatar ? Storage::disk('public')->url($this->avatar) : null;
+    }
+
+    // Through the queue, like every other email (roadmap rule).
+    public function sendEmailVerificationNotification(): void {
+        $this->notify(new QueuedVerifyEmail);
     }
 
     // Through the queue, like every other email (roadmap rule).
