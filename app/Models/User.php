@@ -5,11 +5,13 @@ namespace App\Models;
 use App\Notifications\QueuedResetPassword;
 use App\Notifications\QueuedVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -58,5 +60,15 @@ class User extends Authenticatable implements MustVerifyEmail {
     // Through the queue, like every other email (roadmap rule).
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void {
         $this->notify(new QueuedResetPassword($token));
+    }
+
+    // While an address change waits, the verification link is for the new
+    // address and goes to its inbox; everything else still uses `email`.
+    public function getEmailForVerification(): string {
+        return $this->pending_email ?? $this->email;
+    }
+
+    public function routeNotificationForMail(Notification $notification): string {
+        return $notification instanceof VerifyEmail && $this->pending_email ? $this->pending_email : $this->email;
     }
 }

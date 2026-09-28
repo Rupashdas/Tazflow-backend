@@ -8,11 +8,14 @@ use Illuminate\Http\Request;
 
 class EmailVerificationNotificationController extends Controller {
     public function store(Request $request): JsonResponse {
-        if ($request->user()->hasVerifiedEmail()) {
+        $user = $request->user();
+
+        // Verified, but waiting on a new address: that one still needs its link.
+        if ($user->hasVerifiedEmail() && ! $user->pending_email) {
             return response()->json(['message' => 'Your email address is already verified.']);
         }
 
-        $request->user()->sendEmailVerificationNotification();
+        $user->sendEmailVerificationNotification();
 
         return response()->json(['message' => 'A new verification link has been sent.'], 202);
     }

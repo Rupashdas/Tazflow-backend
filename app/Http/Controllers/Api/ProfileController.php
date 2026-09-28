@@ -7,22 +7,25 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller {
     public function update(UpdateProfileRequest $request): UserResource {
         $user = $request->user();
-        $user->fill($request->validated());
+        $user->fill(Arr::except($request->validated(), ['email']));
 
-        if ($user->isDirty('email')) {
-            // The new address has not been proven to be theirs yet.
-            $user->email_verified_at = null;
+        // The address switches only once the new inbox confirms it
+        // (VerifyEmailController). Until then nobody else sees it.
+        if ($request->has('email')) {
+            $email = $request->validated('email');
+            $user->pending_email = $email === $user->email ? null : $email;
         }
 
         $user->save();
 
-        if ($user->wasChanged('email')) {
+        if ($user->wasChanged('pending_email') && $user->pending_email) {
             $user->sendEmailVerificationNotification();
         }
 

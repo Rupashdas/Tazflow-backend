@@ -17,14 +17,24 @@ class VerifyEmailController extends Controller {
      */
     public function __invoke(int $id, string $hash): RedirectResponse {
         $user = User::findOrFail($id);
+        $to = rtrim(config('app.frontend_url'), '/') . '/email-verified';
 
         abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
 
-        if (! $user->hasVerifiedEmail()) {
+        if ($user->pending_email) {
+            // Someone may have signed up with it while the link waited in the inbox.
+            if (User::where('email', $user->pending_email)->exists()) {
+                $user->forceFill(['pending_email' => null])->save();
+
+                return redirect()->away($to . '?error=email_taken');
+            }
+
+            $user->forceFill(['email' => $user->pending_email, 'pending_email' => null, 'email_verified_at' => now()])->save();
+        } elseif (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
             event(new Verified($user));
         }
 
-        return redirect()->away(rtrim(config('app.frontend_url'), '/') . '/email-verified');
+        return redirect()->away($to);
     }
 }
