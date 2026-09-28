@@ -19,12 +19,15 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('throttle:10,1')->group(function () {
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+
+Route::middleware('throttle:public')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [PasswordResetController::class, 'sendLink']);
     Route::post('/reset-password', [PasswordResetController::class, 'reset']);
+});
 
+Route::middleware('throttle:invitation-link')->group(function () {
     Route::get('/invitations/{token}', [InvitationController::class, 'show']);
     Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 });
@@ -32,7 +35,7 @@ Route::middleware('throttle:10,1')->group(function () {
 // The emailed verification link. `signed` rejects any id or hash that was
 // not produced by this server.
 Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)
-    ->middleware(['signed', 'throttle:6,1'])
+    ->middleware(['signed', 'throttle:email-link'])
     ->name('verification.verify');
 
 /*
