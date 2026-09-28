@@ -44,7 +44,7 @@ class MemberController extends Controller {
 
         // members.manage must not be a back door to Admin: nobody hands out,
         // or takes away, more access than they hold themselves.
-        abort_if($membership->role && ! $current->canGrant($membership->role), 403, 'You cannot change the role of someone with more access than you.');
+        abort_if($current->ranksAbove($membership->role), 403, 'You cannot change the role of someone with more access than you.');
         abort_if(! $current->canGrant(Role::find($validated['role_id'])), 403, 'You cannot give a role with more access than your own.');
 
         $membership->update(['role_id' => $validated['role_id']]);
@@ -56,6 +56,7 @@ class MemberController extends Controller {
         $membership = $this->membershipOf($user);
         $this->refuseForOwner($user, $current, 'The owner cannot be deactivated.');
         abort_if($user->is($request->user()), 422, 'You cannot deactivate yourself.');
+        abort_if($current->ranksAbove($membership->role), 403, 'You cannot switch off someone with more access than you.');
 
         $membership->update(['is_active' => ! $membership->is_active]);
 

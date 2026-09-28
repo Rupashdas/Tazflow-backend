@@ -76,4 +76,9 @@ final class CurrentWorkspace {
     public function canGrant(Role $role): bool {
         return $this->holdsAll($role->capabilityNames());
     }
+
+    /** Whether this role allows something the caller cannot do. No role allows nothing. */
+    public function ranksAbove(?Role $role): bool {
+        return $role !== null && ! $this->canGrant($role);
+    }
 }
