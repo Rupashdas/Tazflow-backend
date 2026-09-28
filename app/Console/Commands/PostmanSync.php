@@ -72,7 +72,7 @@ class PostmanSync extends Command {
             'time_format' => '12',
         ],
         'Workspace@store'             => ['name' => 'New Workspace'],
-        'Workspace@update'            => ['name' => 'Tazko HQ'],
+        'Workspace@update'            => ['name' => 'Tazflow HQ'],
         'Workspace@destroy'           => ['confirm' => '{{workspace_slug}}'],
         'Workspace@transferOwnership' => ['user_id' => '{{member_user_id}}'],
         'Role@store'                  => ['name' => 'reviewer', 'label' => 'Reviewer', 'capabilities' => ['members.view']],
@@ -97,16 +97,16 @@ class PostmanSync extends Command {
 
     /**
      * What DatabaseSeeder always produces after `migrate:fresh --seed`
-     * (autoincrement resets, so the ids are fixed): workspace 1 is "tazko",
+     * (autoincrement resets, so the ids are fixed): workspace 1 is "tazflow",
      * owned by admin@example.com — an owner passes every capability check,
      * so logging in as them can exercise every request in the collection.
-     * Role 2 is tazko's "member" role, held by user 4 (Debos), who is not
+     * Role 2 is tazflow's "member" role, held by user 4 (Debos), who is not
      * the owner — a valid target for transfer-ownership and member actions.
      */
     private const SEEDED_VARIABLES = [
         'email'          => 'admin@example.com',
         'password'       => 'Pass123#',
-        'workspace_slug' => 'tazko',
+        'workspace_slug' => 'tazflow',
         'role_id'        => '2',
         'member_user_id' => '4',
         'invite_name'    => 'New Hire',

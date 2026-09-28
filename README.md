@@ -1,6 +1,6 @@
-# Tazko — API
+# Tazflow — API
 
-The Laravel half of Tazko, a project management app. The Vue SPA lives in `../tazko-frontend`.
+The Laravel half of Tazflow, a project management app. The Vue SPA lives in `../tazflow-frontend`.
 
 ## Setup
 
@@ -8,7 +8,7 @@ The Laravel half of Tazko, a project management app. The Vue SPA lives in `../ta
 composer install
 cp .env.example .env
 php artisan key:generate
-# create the MySQL database named in DB_DATABASE (tazko_app by default), then:
+# create the MySQL database named in DB_DATABASE (tazflow_app by default), then:
 php artisan migrate --seed
 php artisan storage:link
 php artisan serve
