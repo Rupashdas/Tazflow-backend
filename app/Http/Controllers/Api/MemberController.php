@@ -67,6 +67,7 @@ class MemberController extends Controller {
         $membership = $this->membershipOf($user);
         $this->refuseForOwner($user, $current, 'The owner cannot be removed. Hand over ownership first.');
         abort_if($user->is($request->user()), 422, 'You cannot remove yourself.');
+        abort_if($current->ranksAbove($membership->role), 403, 'You cannot remove someone with more access than you.');
 
         // When projects arrive, this is where their memberships and task
         // assignments in this workspace get cleaned up too.
