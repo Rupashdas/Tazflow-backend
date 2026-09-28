@@ -12,6 +12,7 @@ php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link
 php artisan serve
+php artisan queue:work   # in a second terminal: emails go through the queue
 ```
 
 Seeded logins: `admin@example.com`, `rupash.das.202@gmail.com` and others; every password is `Pass123#`.

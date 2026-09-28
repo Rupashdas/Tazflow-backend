@@ -200,6 +200,7 @@ class InvitationController extends Controller {
     }
 
     private function send(Invitation $invitation): void {
-        Mail::to($invitation->email)->send(new InvitationMail($invitation->load(['workspace', 'role', 'invitedBy'])));
+        // Queued: the request returns at once and a worker talks to SMTP.
+        Mail::to($invitation->email)->queue(new InvitationMail($invitation->load(['workspace', 'role', 'invitedBy'])));
     }
 }
