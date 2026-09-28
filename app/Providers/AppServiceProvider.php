@@ -45,5 +45,9 @@ class AppServiceProvider extends ServiceProvider {
         RateLimiter::for('public', fn(Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('invitation-link', fn(Request $request) => Limit::perMinute(30)->by($request->ip()));
         RateLimiter::for('email-link', fn(Request $request) => Limit::perMinute(6)->by($request->ip()));
+
+        // Every invitation is an email from our address. A script must not be
+        // able to flood one inbox or use up the daily sending limit for everyone.
+        RateLimiter::for('invitations', fn(Request $request) => Limit::perHour(50)->by($request->user()->id));
     }
 }

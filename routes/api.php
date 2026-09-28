@@ -102,8 +102,8 @@ Route::middleware(['auth:sanctum', 'active', 'workspace'])->group(function () {
     Route::get('/invitations', [InvitationController::class, 'index'])->middleware('capability:members.view');
 
     Route::middleware('capability:members.invite')->group(function () {
-        Route::post('/invitations', [InvitationController::class, 'store']);
-        Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend']);
+        Route::post('/invitations', [InvitationController::class, 'store'])->middleware('throttle:invitations');
+        Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])->middleware('throttle:invitations');
         Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy']);
     });
 });
