@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MemberResource;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\WorkspaceMember;
 use App\Support\CurrentWorkspace;
@@ -40,6 +41,14 @@ class MemberController extends Controller {
         $validated = $request->validate([
             'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->where('workspace_id', $current->id())],
         ]);
+
+        // members.manage must not be a back door to Admin: nobody hands out,
+        // or takes away, more access than they hold themselves.
+        $mine   = $current->capabilities();
+        $beyond = fn (?Role $role) => $role && array_diff($role->capabilityNames(), $mine) !== [];
+
+        abort_if($beyond($membership->role), 403, 'You cannot change the role of someone with more access than you.');
+        abort_if($beyond(Role::find($validated['role_id'])), 403, 'You cannot give a role with more access than your own.');
 
         $membership->update(['role_id' => $validated['role_id']]);
 
