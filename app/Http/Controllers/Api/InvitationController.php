@@ -54,6 +54,10 @@ class InvitationController extends Controller {
             throw ValidationException::withMessages(['email' => 'That person is already a member of this workspace.']);
         }
 
+        // Replacing a pending invitation must not quietly undo one sent by someone with more access.
+        $pending = Invitation::whereNull('accepted_at')->where('email', $email)->with('role')->first();
+        abort_if($current->ranksAbove($pending?->role), 403, 'Someone with more access has already invited this address.');
+
         $invitation = DB::transaction(function () use ($validated, $email, $request) {
             // A newer invitation replaces any pending one to the same address.
             Invitation::whereNull('accepted_at')->where('email', $email)->delete();
