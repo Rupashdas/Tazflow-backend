@@ -45,10 +45,20 @@ class RoleController extends Controller {
     public function update(Request $request, Role $role, CurrentWorkspace $current): RoleResource {
         abort_if($role->is_admin && $request->has('capabilities'), 422, 'The Admin role always has every capability.');
 
+        // roles.manage must not be a back door either: nobody edits a role
+        // above their own, or writes in access they do not hold.
+        abort_unless($current->canGrant($role), 403, 'You cannot edit a role with more access than your own.');
+
         $validated = $request->validate($this->capabilityRules() + [
             'name'  => ['sometimes', 'required', ...$this->nameRules($current, $role)],
             'label' => ['sometimes', 'required', 'string', 'max:100'],
         ]);
+
+        abort_if(
+            array_key_exists('capabilities', $validated) && ! $current->holdsAll($validated['capabilities']),
+            403,
+            'You cannot give a role access you do not have yourself.',
+        );
 
         DB::transaction(function () use ($role, $validated) {
             $role->update(array_intersect_key($validated, array_flip(['name', 'label'])));

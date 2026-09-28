@@ -63,12 +63,17 @@ final class CurrentWorkspace {
         return in_array($capability, $this->capabilities(), true);
     }
 
+    /** Whether the caller holds every one of these capabilities. */
+    public function holdsAll(array $capabilities): bool {
+        return array_diff($capabilities, $this->capabilities()) === [];
+    }
+
     /**
      * Whether the caller may hand this role to someone, or take it from
      * them: it must not allow anything the caller cannot do. Admin holds
      * every capability, so only other Admins and the owner get past this.
      */
     public function canGrant(Role $role): bool {
-        return array_diff($role->capabilityNames(), $this->capabilities()) === [];
+        return $this->holdsAll($role->capabilityNames());
     }
 }
