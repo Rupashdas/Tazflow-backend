@@ -12,7 +12,7 @@ use Illuminate\Database\Seeder;
 /**
  * Two workspaces to click around in. Every password is Pass123#.
  *
- *   Tazflow        owner admin@example.com; Rupash and Prottasha are Admins,
+ *   Tazkflow        owner admin@example.com; Rupash and Prottasha are Admins,
  *                Debos, Nishan and Tanjim are Members
  *   Acme Studio  owner Prottasha; Debos is a Member — so switching
  *                workspaces and isolation can both be seen by hand
@@ -20,7 +20,7 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder {
     public function run(CreateWorkspace $create): void {
         $people = collect([
-            'owner'     => ['Tazflow Admin', 'admin@example.com', 'Owner'],
+            'owner'     => ['Tazkflow Admin', 'admin@example.com', 'Owner'],
             'rupash'    => ['Rupash Das', 'rupash.das.202@gmail.com', 'Senior Programmer'],
             'prottasha' => ['Prottasha Das', 'prottasha@gmail.com', 'Big Boss'],
             'debos'     => ['Debos Das', 'debos.das.02@gmail.com', 'Backend Developer'],
@@ -33,17 +33,17 @@ class DatabaseSeeder extends Seeder {
             return $user;
         });
 
-        $tazflow = $create($people['owner'], 'Tazflow', 'tazflow');
-        $this->add($tazflow, $people['rupash'], 'admin');
-        $this->add($tazflow, $people['prottasha'], 'admin');
+        $tazkflow = $create($people['owner'], 'Tazkflow', 'tazkflow');
+        $this->add($tazkflow, $people['rupash'], 'admin');
+        $this->add($tazkflow, $people['prottasha'], 'admin');
         foreach (['debos', 'nishan', 'tanjim'] as $key) {
-            $this->add($tazflow, $people[$key], 'member');
+            $this->add($tazkflow, $people[$key], 'member');
         }
 
         $acme = $create($people['prottasha'], 'Acme Studio', 'acme-studio');
         $this->add($acme, $people['debos'], 'member');
 
-        $this->command->info('Seeded two workspaces (tazflow, acme-studio). Every password is Pass123#.');
+        $this->command->info('Seeded two workspaces (tazkflow, acme-studio). Every password is Pass123#.');
     }
 
     // A seeder runs with no current workspace, so the Role scope adds
