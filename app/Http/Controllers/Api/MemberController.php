@@ -20,6 +20,8 @@ use Illuminate\Validation\Rule;
  */
 class MemberController extends Controller {
     public function index(Request $request): AnonymousResourceCollection {
+        $request->validate(['per_page' => ['sometimes', 'integer', 'between:1,100']]);
+
         $search = $request->string('search')->trim()->value();
 
         $members = WorkspaceMember::query()
@@ -29,7 +31,7 @@ class MemberController extends Controller {
                 $user->where('name', 'like', $like)->orWhere('email', 'like', $like);
             }))
             ->orderBy(User::select('name')->whereColumn('users.id', 'workspace_members.user_id'))
-            ->paginate(min((int) $request->input('per_page', 50), 100));
+            ->paginate($request->integer('per_page', 50));
 
         return MemberResource::collection($members);
     }
