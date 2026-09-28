@@ -91,8 +91,9 @@ class InvitationController extends Controller {
         return new InvitationResource($invitation);
     }
 
-    public function destroy(Invitation $invitation): Response {
+    public function destroy(Invitation $invitation, CurrentWorkspace $current): Response {
         abort_if($invitation->isAccepted(), 422, 'This invitation has already been used.');
+        abort_if($current->ranksAbove($invitation->role), 403, 'You cannot cancel an invitation that gives more access than you have.');
 
         $invitation->delete();
 
