@@ -15,6 +15,12 @@ class UpdateProfileRequest extends FormRequest {
         return [
             'name'     => ['sometimes', 'required', 'string', 'max:255'],
             'email'    => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user())],
+            // Changing the address hands over password resets, so it needs the password.
+            'current_password' => [
+                Rule::requiredIf(fn () => $this->has('email') && $this->input('email') !== $this->user()->email),
+                'nullable',
+                'current_password',
+            ],
             'title'    => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone'    => ['sometimes', 'nullable', 'string', 'max:20'],
             'bio'      => ['sometimes', 'nullable', 'string', 'max:500'],

@@ -5,16 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
+use App\Notifications\EmailChangeRequested;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller {
     public function update(UpdateProfileRequest $request): UserResource {
         $user = $request->user();
-        $user->fill(Arr::except($request->validated(), ['email']));
+        $user->fill(Arr::except($request->validated(), ['email', 'current_password']));
 
         // The address switches only once the new inbox confirms it
         // (VerifyEmailController). Until then nobody else sees it.
@@ -27,6 +29,9 @@ class ProfileController extends Controller {
 
         if ($user->wasChanged('pending_email') && $user->pending_email) {
             $user->sendEmailVerificationNotification();
+
+            // If this was not them, the real owner hears about it before anything switches.
+            Notification::route('mail', $user->email)->notify(new EmailChangeRequested($user->pending_email));
         }
 
         return new UserResource($user->load('preference'));
