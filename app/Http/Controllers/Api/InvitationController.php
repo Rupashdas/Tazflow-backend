@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use App\Http\Resources\WorkspaceSummaryResource;
 use App\Mail\InvitationMail;
 use App\Models\Invitation;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\WorkspaceMember;
 use App\Support\CurrentWorkspace;
@@ -40,6 +41,9 @@ class InvitationController extends Controller {
             'email'   => ['required', 'email', 'max:255'],
             'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->where('workspace_id', $current->id())],
         ]);
+
+        // members.invite must not be a back door to Admin (e.g. inviting your own second address).
+        abort_unless($current->canGrant(Role::find($validated['role_id'])), 403, 'You cannot invite someone with a role that has more access than your own.');
 
         $email = Str::lower($validated['email']);
 

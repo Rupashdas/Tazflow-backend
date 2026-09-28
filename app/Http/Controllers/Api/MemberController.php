@@ -24,7 +24,7 @@ class MemberController extends Controller {
 
         $members = WorkspaceMember::query()
             ->with(['user', 'role'])
-            ->when($search !== '', fn ($query) => $query->whereHas('user', function ($user) use ($search) {
+            ->when($search !== '', fn($query) => $query->whereHas('user', function ($user) use ($search) {
                 $like = '%' . addcslashes($search, '%_\\') . '%';
                 $user->where('name', 'like', $like)->orWhere('email', 'like', $like);
             }))
@@ -44,11 +44,8 @@ class MemberController extends Controller {
 
         // members.manage must not be a back door to Admin: nobody hands out,
         // or takes away, more access than they hold themselves.
-        $mine   = $current->capabilities();
-        $beyond = fn (?Role $role) => $role && array_diff($role->capabilityNames(), $mine) !== [];
-
-        abort_if($beyond($membership->role), 403, 'You cannot change the role of someone with more access than you.');
-        abort_if($beyond(Role::find($validated['role_id'])), 403, 'You cannot give a role with more access than your own.');
+        abort_if($membership->role && ! $current->canGrant($membership->role), 403, 'You cannot change the role of someone with more access than you.');
+        abort_if(! $current->canGrant(Role::find($validated['role_id'])), 403, 'You cannot give a role with more access than your own.');
 
         $membership->update(['role_id' => $validated['role_id']]);
 
@@ -80,7 +77,7 @@ class MemberController extends Controller {
     // BelongsToWorkspace keeps this inside the current workspace.
     private function membershipOf(User $user): WorkspaceMember {
         return WorkspaceMember::where('user_id', $user->id)
-            ->firstOr(fn () => abort(404, 'That person is not a member of this workspace.'));
+            ->firstOr(fn() => abort(404, 'That person is not a member of this workspace.'));
     }
 
     private function refuseForOwner(User $user, CurrentWorkspace $current, string $message): void {

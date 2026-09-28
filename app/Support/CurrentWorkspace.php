@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Role;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use LogicException;
@@ -60,5 +61,14 @@ final class CurrentWorkspace {
 
     public function allows(string $capability): bool {
         return in_array($capability, $this->capabilities(), true);
+    }
+
+    /**
+     * Whether the caller may hand this role to someone, or take it from
+     * them: it must not allow anything the caller cannot do. Admin holds
+     * every capability, so only other Admins and the owner get past this.
+     */
+    public function canGrant(Role $role): bool {
+        return array_diff($role->capabilityNames(), $this->capabilities()) === [];
     }
 }
