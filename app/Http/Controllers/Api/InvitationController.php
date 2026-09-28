@@ -135,6 +135,8 @@ class InvitationController extends Controller {
         ]);
 
         $user = DB::transaction(function () use ($invitation, $validated) {
+            $this->claim($invitation);
+
             $user = User::create([
                 'name'     => $validated['name'] ?? $invitation->name,
                 'email'    => $invitation->email,
@@ -166,7 +168,10 @@ class InvitationController extends Controller {
             'This invitation was sent to a different email address.',
         );
 
-        DB::transaction(fn() => $this->admit($invitation, $request->user()));
+        DB::transaction(function () use ($invitation, $request) {
+            $this->claim($invitation);
+            $this->admit($invitation, $request->user());
+        });
 
         return new WorkspaceSummaryResource(
             WorkspaceMember::where('workspace_id', $invitation->workspace_id)
@@ -187,6 +192,17 @@ class InvitationController extends Controller {
         abort_if($invitation->isExpired(), 410, 'This invitation has expired. Ask for a new one.');
 
         return $invitation;
+    }
+
+    /**
+     * Inside the transaction: lock the invitation and check it is still
+     * unused. A double click sends two requests; the second waits here for
+     * the first to finish, then gets a clean 410 instead of a 500.
+     */
+    private function claim(Invitation $invitation): void {
+        $acceptedAt = Invitation::whereKey($invitation->id)->lockForUpdate()->value('accepted_at');
+
+        abort_if($acceptedAt !== null, 410, 'This invitation has already been used.');
     }
 
     /** An existing membership is left as it is. */
